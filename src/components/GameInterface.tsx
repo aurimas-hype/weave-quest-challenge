@@ -14,7 +14,10 @@ import {
   RotateCcw, 
   Wallet,
   GamepadIcon,
-  Crown
+  Crown,
+  Play,
+  ChevronRight,
+  Unlock
 } from 'lucide-react';
 import { useGameState } from '@/hooks/useGameState';
 import { puzzles } from '@/data/puzzles';
@@ -38,11 +41,16 @@ const GameInterface = () => {
 
   const [showWalletForm, setShowWalletForm] = useState(false);
   const [activeTab, setActiveTab] = useState('game');
+  const [selectedPuzzle, setSelectedPuzzle] = useState<string | null>(null);
   const { toast } = useToast();
 
   const currentPuzzle = getCurrentPuzzle();
   const maxLevel = Math.max(...puzzles.map(p => p.level));
   const allLevelsComplete = gameState.currentLevel > maxLevel;
+  
+  const totalPuzzles = puzzles.length;
+  const completedPuzzles = gameState.completedPuzzles.length;
+  const completedLevels = Math.max(0, gameState.currentLevel - 1);
 
   const handlePuzzleComplete = (puzzleId: string, points: number) => {
     completePuzzle(puzzleId, points);
@@ -82,6 +90,242 @@ const GameInterface = () => {
       case 5: return 'Legendary';
       default: return `Level ${level}`;
     }
+  };
+
+  const getLevelDifficulty = (level: number) => {
+    switch (level) {
+      case 1: return 'Easy';
+      case 2: return 'Medium';
+      case 3: return 'Hard';
+      case 4: return 'Extreme';
+      case 5: return 'Legendary';
+      default: return 'Unknown';
+    }
+  };
+
+  const getPuzzleTypeColor = (type: string) => {
+    switch (type) {
+      case 'decode': return 'bg-primary';
+      case 'riddle': return 'bg-accent';
+      case 'statement': return 'bg-success';
+      case 'multiple-choice': return 'bg-warning';
+      case 'encrypted': return 'bg-destructive';
+      case 'multi-step': return 'bg-neon-purple';
+      case 'scramble': return 'bg-neon-green';
+      default: return 'bg-muted';
+    }
+  };
+
+  const isLevelUnlocked = (level: number) => {
+    return level <= gameState.currentLevel;
+  };
+
+  const getPuzzlesForLevel = (level: number) => {
+    return puzzles.filter(p => p.level === level);
+  };
+
+  const renderMainInterface = () => {
+    if (selectedPuzzle) {
+      const puzzle = puzzles.find(p => p.id === selectedPuzzle);
+      if (!puzzle) return null;
+      
+      return (
+        <div className="max-w-2xl mx-auto">
+          <Button 
+            variant="ghost" 
+            onClick={() => setSelectedPuzzle(null)}
+            className="mb-4 text-primary hover:text-primary/80"
+          >
+            ← Back to Overview
+          </Button>
+          <PuzzleCard
+            puzzle={puzzle}
+            onComplete={handlePuzzleComplete}
+            isCompleted={isPuzzleCompleted(puzzle.id)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        {/* Hero Stats */}
+        <div className="text-center space-y-6">
+          <div className="space-y-2">
+            <div className="text-6xl font-bold text-gradient">
+              <span className="text-neon-cyan">{'>'}</span> dcipher
+            </div>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Master the art of cryptographic puzzles and unlock the secrets of decentralized trust
+            </p>
+          </div>
+          
+          {/* Progress Badges */}
+          <div className="flex items-center justify-center gap-4">
+            <Badge variant="outline" className="border-primary text-primary px-4 py-2">
+              <Zap className="w-4 h-4 mr-2" />
+              {completedPuzzles}/{totalPuzzles} Puzzles Solved
+            </Badge>
+            <Badge variant="outline" className="border-success text-success px-4 py-2">
+              <Trophy className="w-4 h-4 mr-2" />
+              {completedLevels}/5 Levels Completed
+            </Badge>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+            <Card className="border-primary/30 bg-card/50">
+              <CardContent className="pt-6 text-center">
+                <div className="text-3xl font-bold text-primary">{gameState.currentLevel}</div>
+                <div className="text-sm text-muted-foreground">Levels Unlocked</div>
+              </CardContent>
+            </Card>
+            <Card className="border-success/30 bg-card/50">
+              <CardContent className="pt-6 text-center">
+                <div className="text-3xl font-bold text-success">{completedPuzzles}</div>
+                <div className="text-sm text-muted-foreground">Puzzles Solved</div>
+              </CardContent>
+            </Card>
+            <Card className="border-accent/30 bg-card/50">
+              <CardContent className="pt-6 text-center">
+                <div className="text-3xl font-bold text-accent">
+                  {Math.round((completedPuzzles / totalPuzzles) * 100)}%
+                </div>
+                <div className="text-sm text-muted-foreground">Progress</div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Challenge Levels */}
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gradient mb-2">Challenge Levels</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Progress through increasingly complex cryptographic puzzles. Each level builds upon the previous, testing your understanding of blockchain and cryptographic concepts.
+            </p>
+          </div>
+
+          {/* Level Cards */}
+          <div className="space-y-6">
+            {[1, 2, 3, 4, 5].map(level => {
+              const levelPuzzles = getPuzzlesForLevel(level);
+              const completedInLevel = getCompletedPuzzlesInLevel(level);
+              const totalInLevel = getTotalPuzzlesInLevel(level);
+              const isUnlocked = isLevelUnlocked(level);
+              
+              return (
+                <Card 
+                  key={level} 
+                  className={`${
+                    isUnlocked ? 'border-primary glow-cyan' : 'border-muted opacity-60'
+                  } transition-all`}
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {isUnlocked ? (
+                          <Unlock className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Lock className="w-5 h-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <CardTitle className={`text-xl ${isUnlocked ? 'text-primary' : 'text-muted-foreground'}`}>
+                            Level {level}: {getLevelTitle(level)}
+                          </CardTitle>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                level === 1 ? 'border-success text-success' :
+                                level === 2 ? 'border-warning text-warning' :
+                                level === 3 ? 'border-primary text-primary' :
+                                level === 4 ? 'border-accent text-accent' :
+                                'border-destructive text-destructive'
+                              }`}
+                            >
+                              {getLevelDifficulty(level)}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {level === 1 ? 'Learn the basics of cryptographic concepts' :
+                               level === 2 ? 'Master conditional logic and consensus mechanisms' :
+                               level === 3 ? 'Tackle complex cryptographic puzzles' :
+                               level === 4 ? 'Face extreme multi-layer challenges' :
+                               'Achieve legendary mastery'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium">Progress</div>
+                        <div className="text-lg font-bold">
+                          {completedInLevel}/{totalInLevel} completed
+                        </div>
+                      </div>
+                    </div>
+                    {isUnlocked && (
+                      <Progress 
+                        value={(completedInLevel / totalInLevel) * 100}
+                        className="h-2"
+                      />
+                    )}
+                  </CardHeader>
+                  
+                  {isUnlocked && (
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {levelPuzzles.map(puzzle => {
+                          const isCompleted = isPuzzleCompleted(puzzle.id);
+                          return (
+                            <Card 
+                              key={puzzle.id}
+                              className={`border transition-all hover:border-primary/50 cursor-pointer ${
+                                isCompleted ? 'border-success glow-green' : 'border-border'
+                              }`}
+                              onClick={() => setSelectedPuzzle(puzzle.id)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <Badge 
+                                      className={`${getPuzzleTypeColor(puzzle.type)} text-white text-xs`}
+                                    >
+                                      {puzzle.type}
+                                    </Badge>
+                                    {isCompleted && (
+                                      <Badge variant="outline" className="border-success text-success text-xs">
+                                        ✓
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium text-sm mb-1">{puzzle.title}</h4>
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                      {puzzle.description}
+                                    </p>
+                                  </div>
+                                  <Button 
+                                    size="sm" 
+                                    className="w-full bg-gradient-primary hover:opacity-90"
+                                  >
+                                    <Play className="w-3 h-3 mr-1" />
+                                    {isCompleted ? 'Review' : 'Start Puzzle'}
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderGameContent = () => {
@@ -133,44 +377,7 @@ const GameInterface = () => {
       );
     }
 
-    if (!currentPuzzle) {
-      return (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No more puzzles in this level. Advancing...</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        <PuzzleCard
-          puzzle={currentPuzzle}
-          onComplete={handlePuzzleComplete}
-          isCompleted={isPuzzleCompleted(currentPuzzle.id)}
-        />
-        
-        {/* Level Progress */}
-        <Card className="border-muted">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {getLevelIcon(gameState.currentLevel)}
-                <span className="font-medium">
-                  Level {gameState.currentLevel}: {getLevelTitle(gameState.currentLevel)}
-                </span>
-              </div>
-              <span className="text-sm text-muted-foreground">
-                {getCompletedPuzzlesInLevel(gameState.currentLevel)} / {getTotalPuzzlesInLevel(gameState.currentLevel)}
-              </span>
-            </div>
-            <Progress 
-              value={(getCompletedPuzzlesInLevel(gameState.currentLevel) / getTotalPuzzlesInLevel(gameState.currentLevel)) * 100}
-              className="h-2"
-            />
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return renderMainInterface();
   };
 
   return (
@@ -221,7 +428,7 @@ const GameInterface = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="game" className="max-w-2xl mx-auto">
+          <TabsContent value="game" className="max-w-6xl mx-auto">
             {renderGameContent()}
           </TabsContent>
 
